@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konuşmayı Metne Dönüştür</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #000000;
+            color: #E1E8ED;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #15202B;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            animation: fadeIn 2s ease-in-out;
+        }
+
+        h1 {
+            font-size: 26px;
+            color: #1DA1F2;
+            text-align: center;
+            margin-bottom: 20px;
+            animation: slideDown 1s ease-in-out;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background-color: #1DA1F2;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.5s ease;
+            box-shadow: 0 3px 8px rgba(0, 120, 212, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 2s ease-in-out;
+        }
+
+        .btn:hover {
+            background-color: #0d8de1;
+            animation: scaleUp 0.5s forwards;
+        }
+
+        .btn:disabled {
+            background-color: #aab8c2;
+            cursor: not-allowed;
+        }
+
+        .text-box {
+            background-color: #192734;
+            padding: 15px;
+            border-radius: 12px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 16px;
+            color: #E1E8ED;
+            margin-bottom: 20px;
+            animation: fadeIn 2s ease-in-out;
+        }
+
+        .text-box p {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #38444d;
+        }
+
+        .text-box .timestamp {
+            font-weight: bold;
+        }
+
+        .settings {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings label {
+            font-size: 14px;
+            color: #657786;
+        }
+
+        .settings select {
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #38444d;
+            background-color: #15202B;
+            color: #E1E8ED;
+            outline: none;
+        }
+
+        .text-box::-webkit-scrollbar {
+            width: 6px;
+        }
+        .text-box::-webkit-scrollbar-thumb {
+            background-color: #1DA1F2;
+            border-radius: 10px;
+        }
+
+        /* Animasyonlar */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes scaleUp {
+            from {
+                transform: scale(1);
+            }
+            to {
+                transform: scale(1.05);
+            }
+        }
+
+        /* Yükleme animasyonu */
+        #loading-animation {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #1DA1F2;
+            text-align: center;
+            animation: fadeIn 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-animation">Yükleniyor...</div>
+
+    <div class="container">
+        <h1>Konuşmayı Metne Dönüştür</h1>
+
+        <div class="controls">
+            <button id="start-btn" class="btn">Canlı Konuşmaya Başla</button>
+            <button id="stop-btn" class="btn" disabled>Canlı Konuşmayı Durdur</button>
+            <button id="clear-btn" class="btn">Ekranı Temizle</button>
+            <button id="download-btn" class="btn" disabled>Word İndir</button>
+        </div>
+
+        <div id="text" class="text-box">
+            <p><span class="timestamp">[Zaman]</span> Burada konuşma metni görünecek...</p>
+        </div>
+
+        <div class="settings">
+            <label for="language">Dil Seçiniz:</label>
+            <select id="language">
+                <option value="tr-TR">Türkçe</option>
+                <option value="en-US">İngilizce</option>
+            </select>
+        </div>
+    </div>
+
+    <script>
+        let previousText = '';
+        let isListening = false;
+        let recognition;
+        let interimTranscript = '';
+
+        const textDisplay = document.getElementById('text');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const languageSelect = document.getElementById('language');
+        const loadingAnimation = document.getElementById('loading-animation');
+
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+        } else if ('SpeechRecognition' in window) {
+            recognition = new SpeechRecognition();
+        }
+
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        startBtn.addEventListener('click', () => {
+            recognition.lang = languageSelect.value;
+            recognition.start();
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            isListening = true;
+            textDisplay.innerHTML = "<p><span class='timestamp'>[Zaman]</span> Konuşmaya başlayın...</p>";
+            loadingAnimation.style.display = 'block'; // Yükleme animasyonu başlat
+        });
+
+        stopBtn.addEventListener('click', () => {
+            recognition.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            isListening = false;
+            loadingAnimation.style.display = 'none'; // Yükleme animasyonunu durdur
+        });
+
+        clearBtn.addEventListener('click', () => {
+            textDisplay.innerHTML = "<p><span class='timestamp'>[Zaman]</span> Burada konuşma metni görünecek...</p>";
+            previousText = '';
+            downloadBtn.disabled = true;
+        });
+
+        downloadBtn.addEventListener('click', () => {
+            const textContent = textDisplay.innerText; // HTML etiketleri olmadan metni al
+            const blob = new Blob([textContent], { type: 'application/msword' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'konusma-kaydi.doc';
+            link.click();
+        });
+
+        recognition.onresult = (event) => {
+            interimTranscript = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const result = event.results[i];
+                interimTranscript += result[0].transcript.trim() + ' ';
+                if (result.isFinal) {
+                    const timeStamp = getCurrentTime();
+                    const finalText = `<p><span class='timestamp'>[${timeStamp}]</span> ${interimTranscript}</p>`;
+                    textDisplay.innerHTML += finalText; // Metni ekle
+                    previousText += finalText;
+                    interimTranscript = '';
+                    downloadBtn.disabled = false;
+                }
+            }
+            textDisplay.lastElementChild.innerHTML = `<span class='timestamp'>[${getCurrentTime()}]</span> ${interimTranscript}`; // Geçici metni göster
+            loadingAnimation.style.display = 'none'; // Yükleme animasyonunu durdur
+        };
+
+        recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+            loadingAnimation.style.display = 'none'; // Yükleme animasyonunu durdur
+        };
+    </script>
+</body>
+</html>
