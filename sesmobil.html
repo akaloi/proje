@@ -251,6 +251,31 @@
         recognition.onerror = (event) => {
             console.error('Speech recognition error:', event.error);
         };
+        // Hata yönetimi ve kullanıcı bilgilendirmesi için eklemeler
+startBtn.addEventListener('click', () => {
+    if (!recognition) {
+        alert("Tarayıcınız ses tanıma özelliğini desteklemiyor veya HTTPS protokolü kullanılmıyor.");
+        return;
+    }
+
+    try {
+        recognition.lang = languageSelect.value;
+        recognition.start();
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        isListening = true;
+        textDisplay.innerHTML = "<p><span class='timestamp'>[Zaman]</span> Konuşmaya başlayın...</p>";
+    } catch (error) {
+        console.error("Ses tanıma başlatılamadı:", error);
+        alert("Ses tanıma başlatılamadı. Lütfen tarayıcı ayarlarınızı kontrol edin.");
+    }
+});
+
+recognition.onerror = (event) => {
+    console.error('Ses tanıma hatası:', event.error);
+    alert("Ses tanıma hatası oluştu: " + event.error);
+};
+
     </script>
 </body>
 </html>
